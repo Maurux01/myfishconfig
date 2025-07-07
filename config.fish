@@ -1,22 +1,16 @@
 # File: config.fish
-# Fish config - Enhanced version
-set fish_greeting
-# File: config.fish
-# Fish config - Enhanced version
-set fish_greeting
+# Fish config - Enhanced and corrected version
 
-set -g theme_nerd_fonts yes
-
-
-# Configuración de historial
-set -g history_size 10000
+# --- General Settings ---
+set fish_greeting "" # Hide the default greeting message
 set -g fish_escape_delay_ms 10
-
-# Configuración de autocompletado
 set -g fish_autosuggestion_enabled 1
 set -g fish_autosuggestion_highlight_color 555
+set -g history_size 10000
 
-# Aliases básicos
+# --- Aliases ---
+
+# Basic navigation
 alias ll='ls -lah'
 alias la='ls -A'
 alias l='ls -CF'
@@ -24,7 +18,7 @@ alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
 
-# Git aliases
+# Git
 alias gs='git status'
 alias ga='git add .'
 alias gc='git commit -m'
@@ -36,537 +30,226 @@ alias gb='git branch'
 alias gd='git diff'
 alias glog='git log --oneline --graph --decorate'
 
-# Herramientas de desarrollo
+# Modern tools replacements
 alias lg='lazygit'
-alias cat='bat'
+alias cat='bat --paging=never' # Use bat instead of cat
 alias find='fd'
 alias grep='rg'
 alias top='btop'
 alias y='yazi'
-alias z='zoxide'
 alias fz='fzf'
+# Note: `alias z` is handled by zoxide's init script below
 
-# Sistema
+# System utilities
 alias df='df -h'
 alias du='du -h'
 alias free='free -h'
 alias ps='ps auxf'
 alias ports='netstat -tulanp'
-alias meminfo='free -h | grep "Mem" | awk "{print \"Memoria: \" $3 \" / \" $2 \" (\" $3/$2*100.0 \"%)\"}"'
-alias cpuinfo='top -bn1 | grep "Cpu(s)" | awk "{print \"CPU: \" $2 \"%\"}"'
+alias meminfo 'free -h | grep "Mem" | awk ''{printf "Memoria: %s / %s (%.2f%%)\n", $3, $2, $3/$2*100.0}'''
+alias cpuinfo 'top -bn1 | grep "Cpu(s)" | awk ''{printf "CPU: %.2f%%\n", $2}'''
 
-# Configuración de aplicaciones
+# Applications
 alias nv='nvim'
 alias vim='nvim'
 alias vi='nvim'
 alias e='eww'
 alias h='hyprctl'
 
-# Nuevos aliases geniales
-alias speedtest='curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python3 -'
+# Utilities
+# For speedtest-cli, install it first: `sudo pacman -S speedtest-cli`
+alias speedtest='speedtest-cli'
 alias myip='curl -s https://ipinfo.io/ip'
 
-# Función para backup rápido de dotfiles
+# --- Functions ---
+
+# Backup dotfiles to a git repository
 function dotbackup
+  # IMPORTANT: Change this path to your dotfiles repository
   cd ~/github/arch-dots
   git add .
-  git commit -m "Backup: $(date '+%Y-%m-%d %H:%M:%S')"
+  git commit -m "Backup: (date '+%Y-%m-%d %H:%M:%S')"
   git push
   cd -
   echo "✅ Backup subido a GitHub!"
 end
 
-# Función para actualizar sistema
+# Update Arch Linux system
 function update
-  echo "🔄 Actualizando sistema..."
-  sudo pacman -Syu
-  echo "🧹 Limpiando caché..."
-  sudo pacman -Sc
+  echo "🔄 Actualizando sistema (Pacman)..."
+  sudo pacman -Syu --noconfirm
+  echo "🧹 Limpiando caché de paquetes..."
+  sudo pacman -Sc --noconfirm
   echo "✅ Sistema actualizado!"
 end
 
-# Función para buscar paquetes
+# Pacman wrappers
 function search
   pacman -Ss $argv
 end
-
-# Función para instalar paquetes
 function install
   sudo pacman -S $argv
 end
-
-# Función para desinstalar paquetes
 function remove
-  sudo pacman -R $argv
+  sudo pacman -Rns $argv
 end
 
-# Función para ver información del sistema
+# Show system info
 function sysinfo
   neofetch
 end
 
-# Función para ver el clima
+# Get weather
 function weather
   curl wttr.in/$argv
 end
 
-# Nuevas funciones geniales
-function extract
-  if test -f $argv[1]
-    switch $argv[1]
-      case "*.tar.gz" "*.tgz"
-        tar -xzf $argv[1]
-      case "*.tar.bz2" "*.tbz"
-        tar -xjf $argv[1]
-      case "*.tar.xz" "*.txz"
-        tar -xJf $argv[1]
-      case "*.zip"
-        unzip $argv[1]
-      case "*.rar"
-        unrar x $argv[1]
-      case "*.7z"
-        7z x $argv[1]
-      case "*"
-        echo "Formato no soportado"
-    end
-  else
-    echo "Archivo no encontrado"
+# Extract any archive
+function extract --argument-names file
+  if not test -f "$file"
+    echo "Error: Archivo no encontrado en '$file'"
+    return 1
   end
+
+  switch "$file"
+    case "*.tar.gz" "*.tgz"
+      tar -xzf "$file"
+    case "*.tar.bz2" "*.tbz"
+      tar -xjf "$file"
+    case "*.tar.xz" "*.txz"
+      tar -xJf "$file"
+    case "*.zip"
+      unzip "$file"
+    case "*.rar"
+      unrar x "$file"
+    case "*.7z"
+      7z x "$file"
+    case "*"
+      echo "Error: Formato de archivo no soportado."
+      return 1
+  end
+  echo "✅ Archivo extraído: $file"
 end
 
-function mkcd
-  mkdir -p $argv[1] && cd $argv[1]
+# Create a directory and cd into it
+function mkcd --argument-names dir
+  if test -z "$dir"
+    echo "Uso: mkcd <nombre_directorio>"
+    return 1
+  end
+  mkdir -p "$dir" && cd "$dir"
 end
 
-function backup
-  cp $argv[1] $argv[1].backup.(date +%Y%m%d_%H%M%S)
-  echo "✅ Backup creado: $argv[1].backup.(date +%Y%m%d_%H%M%S)"
+# Create a timestamped backup of a file
+function backup --argument-names file
+  if not test -f "$file"
+    echo "Error: Archivo no encontrado en '$file'"
+    return 1
+  end
+  set -l backup_name "$file.backup.(date +%Y%m%d_%H%M%S)"
+  cp "$file" "$backup_name"
+  echo "✅ Backup creado: $backup_name"
 end
 
-function serve
-  python3 -m http.server $argv[1]
+# Start a simple web server in the current directory
+function serve --argument-names port
+  set -l server_port (or $port 8000)
+  echo "🌐 Sirviendo en http://localhost:$server_port"
+  python3 -m http.server $server_port
 end
 
+# Get cheat sheets from cheat.sh
 function cheat
-  curl cheat.sh/$argv[1]
+  curl cheat.sh/$argv
 end
 
-# Configuración de Oh My Fish
-if not functions -q omf
-  echo "🐟 Instalando Oh My Fish..."
-  curl -L https://get.oh-my.fish | fish
-end
+# --- Tools Initialization ---
 
-# Instalar tema si no está instalado
-if not omf theme | grep -q bobthefish
-  omf install bobthefish
-end
-
-# Configuración del tema
-set -g theme_display_git yes
-set -g theme_display_git_dirty yes
-set -g theme_display_git_untracked yes
-set -g theme_display_git_ahead_verbose yes
-set -g theme_display_git_dirty_verbose yes
-set -g theme_display_git_stashed_verbose yes
-set -g theme_display_git_default_branch yes
-set -g theme_git_default_branches master main
-set -g theme_git_worktree_support yes
-set -g theme_use_abbreviated_branch_name yes
-set -g theme_display_vagrant yes
-set -g theme_display_docker_machine yes
-set -g theme_display_k8s_context yes
-set -g theme_display_hg yes
-set -g theme_display_virtualenv yes
-set -g theme_display_nix yes
-set -g theme_display_ruby yes
-set -g theme_display_node yes
-set -g theme_display_user ssh
-set -g theme_display_hostname ssh
-set -g theme_display_vi no
-set -g theme_display_date no
-set -g theme_display_cmd_duration yes
-set -g theme_title_display_process yes
-set -g theme_title_display_path yes
-set -g theme_title_display_user yes
-set -g theme_title_use_abbreviated_path no
-set -g theme_date_format "+%a %H:%M"
-set -g theme_avoid_ambiguous_glyphs yes
-set -g theme_powerline_fonts yes
-set -g theme_nerd_fonts yes
-set -g theme_show_exit_status yes
-set -g theme_display_jobs_verbose yes
-set -g default_user your_normal_user
-set -g theme_color_scheme dark
-set -g fish_prompt_pwd_dir_length 0
-set -g theme_project_dir_length 1
-set -g theme_newline_cursor yes
-set -g theme_newline_prompt '$ '
-
-# Configuración de fzf
+# fzf (Fuzzy Finder)
 set -g FZF_DEFAULT_OPTS '--height 40% --layout=reverse --border'
 set -g FZF_DEFAULT_COMMAND 'fd --type f --hidden --follow --exclude .git'
 
-# Configuración de zoxide
+# zoxide (Smarter cd)
 zoxide init fish | source
 
-# Configuración de atuin (historial mejorado)
+# atuin (Magical shell history)
 if command -v atuin >/dev/null 2>&1
   atuin init fish | source
 end
 
-# Configuración de starship (prompt alternativo)
+# starship (The cross-shell prompt)
+# Note: All `bobthefish` theme configurations were removed
+# as starship is being initialized here.
 if command -v starship >/dev/null 2>&1
   starship init fish | source
 end
 
-# Configuración de direnv
+# direnv (Environment switcher)
 if command -v direnv >/dev/null 2>&1
   direnv hook fish | source
 end
 
-# Configuración de asdf (version manager)
+# --- Version Managers ---
+# Note: `asdf` can manage Node, Python, and Ruby versions.
+# You could simplify this section by using only asdf.
+
+# asdf (Universal version manager)
 if command -v asdf >/dev/null 2>&1
-  source ~/.asdf/asdf.fish
+  source (brew --prefix asdf)/libexec/asdf.fish
 end
 
-# Configuración de nvm
+# nvm (Node Version Manager)
 if command -v nvm >/dev/null 2>&1
   nvm use default >/dev/null 2>&1
 end
 
-# Configuración de pyenv
+# pyenv (Python Version Manager)
 if command -v pyenv >/dev/null 2>&1
   pyenv init - | source
 end
 
-# Configuración de rbenv
+# rbenv (Ruby Version Manager)
 if command -v rbenv >/dev/null 2>&1
   rbenv init - | source
 end
 
-# Completions útiles
-for tool in kubectl docker helm terraform az
+# --- Completions ---
+
+# Note for Terraform: Run `terraform -install-autocomplete` ONCE in your shell.
+# Do not run it on every shell startup.
+for tool in kubectl docker helm az
   if command -v $tool >/dev/null 2>&1
-    switch $tool
-      case kubectl
-        kubectl completion fish | source
-      case docker
-        docker completion fish | source
-      case helm
-        helm completion fish | source
-      case terraform
-        terraform -install-autocomplete
-      case az
-        az completion fish | source
+    $tool completion fish | source
+  end
+end
+
+# --- PATH Configuration ---
+
+# Optimized function to add directories to PATH if they exist and are not already there
+function add_path --argument-names path
+  if test -d "$path"
+    if not contains "$path" $PATH
+      set -gx PATH "$path" $PATH
     end
   end
 end
 
-# PATH optimizado y rápido
-function add_path --argument path
-  if test -d $path
-    if not contains $path $PATH
-      set -gx PATH $path $PATH
-    end
-  end
-end
-
+# Add user-specific and system-wide binary paths
+add_path $HOME/.local/bin
+add_path $HOME/.local/scripts
+add_path $HOME/bin
 add_path $HOME/.cargo/bin
 add_path $HOME/go/bin
 add_path $HOME/flutter/bin
 add_path $HOME/.deno/bin
 add_path $HOME/.bun/bin
+add_path $HOME/.npm-global/bin
 add_path $HOME/.local/share/pnpm
 add_path $HOME/.yarn/bin
 add_path $HOME/.composer/vendor/bin
-add_path $HOME/.local/bin
-add_path $HOME/.local/scripts
 add_path /usr/local/bin
-add_path $HOME/bin
 add_path /snap/bin
 add_path /var/lib/flatpak/exports/bin
-add_path $HOME/.npm-global/bin
 
-set -g theme_nerd_fonts yes
-
-
-# Configuración de historial
-set -g history_size 10000
-set -g fish_escape_delay_ms 10
-
-# Configuración de autocompletado
-set -g fish_autosuggestion_enabled 1
-set -g fish_autosuggestion_highlight_color 555
-
-# Aliases básicos
-alias ll='ls -lah'
-alias la='ls -A'
-alias l='ls -CF'
-alias ..='cd ..'
-alias ...='cd ../..'
-alias ....='cd ../../..'
-
-# Git aliases
-alias gs='git status'
-alias ga='git add .'
-alias gc='git commit -m'
-alias gp='git push'
-alias gl='git pull'
-alias gco='git checkout'
-alias gcb='git checkout -b'
-alias gb='git branch'
-alias gd='git diff'
-alias glog='git log --oneline --graph --decorate'
-
-# Herramientas de desarrollo
-alias lg='lazygit'
-alias cat='bat'
-alias find='fd'
-alias grep='rg'
-alias top='btop'
-alias y='yazi'
-alias z='zoxide'
-alias fz='fzf'
-
-# Sistema
-alias df='df -h'
-alias du='du -h'
-alias free='free -h'
-alias ps='ps auxf'
-alias ports='netstat -tulanp'
-alias meminfo='free -h | grep "Mem" | awk "{print \"Memoria: \" $3 \" / \" $2 \" (\" $3/$2*100.0 \"%)\"}"'
-alias cpuinfo='top -bn1 | grep "Cpu(s)" | awk "{print \"CPU: \" $2 \"%\"}"'
-
-# Configuración de aplicaciones
-alias nv='nvim'
-alias vim='nvim'
-alias vi='nvim'
-alias e='eww'
-alias h='hyprctl'
-
-# Nuevos aliases geniales
-alias speedtest='curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python3 -'
-alias myip='curl -s https://ipinfo.io/ip'
-
-# Función para backup rápido de dotfiles
-function dotbackup
-  cd ~/github/arch-dots
-  git add .
-  git commit -m "Backup: $(date '+%Y-%m-%d %H:%M:%S')"
-  git push
-  cd -
-  echo "✅ Backup subido a GitHub!"
-end
-
-# Función para actualizar sistema
-function update
-  echo "🔄 Actualizando sistema..."
-  sudo pacman -Syu
-  echo "🧹 Limpiando caché..."
-  sudo pacman -Sc
-  echo "✅ Sistema actualizado!"
-end
-
-# Función para buscar paquetes
-function search
-  pacman -Ss $argv
-end
-
-# Función para instalar paquetes
-function install
-  sudo pacman -S $argv
-end
-
-# Función para desinstalar paquetes
-function remove
-  sudo pacman -R $argv
-end
-
-# Función para ver información del sistema
-function sysinfo
-  neofetch
-end
-
-# Función para ver el clima
-function weather
-  curl wttr.in/$argv
-end
-
-# Nuevas funciones geniales
-function extract
-  if test -f $argv[1]
-    switch $argv[1]
-      case "*.tar.gz" "*.tgz"
-        tar -xzf $argv[1]
-      case "*.tar.bz2" "*.tbz"
-        tar -xjf $argv[1]
-      case "*.tar.xz" "*.txz"
-        tar -xJf $argv[1]
-      case "*.zip"
-        unzip $argv[1]
-      case "*.rar"
-        unrar x $argv[1]
-      case "*.7z"
-        7z x $argv[1]
-      case "*"
-        echo "Formato no soportado"
-    end
-  else
-    echo "Archivo no encontrado"
-  end
-end
-
-function mkcd
-  mkdir -p $argv[1] && cd $argv[1]
-end
-
-function backup
-  cp $argv[1] $argv[1].backup.(date +%Y%m%d_%H%M%S)
-  echo "✅ Backup creado: $argv[1].backup.(date +%Y%m%d_%H%M%S)"
-end
-
-function serve
-  python3 -m http.server $argv[1]
-end
-
-function cheat
-  curl cheat.sh/$argv[1]
-end
-
-# Configuración de Oh My Fish
-if not functions -q omf
-  echo "🐟 Instalando Oh My Fish..."
-  curl -L https://get.oh-my.fish | fish
-end
-
-# Instalar tema si no está instalado
-if not omf theme | grep -q bobthefish
-  omf install bobthefish
-end
-
-# Configuración del tema
-set -g theme_display_git yes
-set -g theme_display_git_dirty yes
-set -g theme_display_git_untracked yes
-set -g theme_display_git_ahead_verbose yes
-set -g theme_display_git_dirty_verbose yes
-set -g theme_display_git_stashed_verbose yes
-set -g theme_display_git_default_branch yes
-set -g theme_git_default_branches master main
-set -g theme_git_worktree_support yes
-set -g theme_use_abbreviated_branch_name yes
-set -g theme_display_vagrant yes
-set -g theme_display_docker_machine yes
-set -g theme_display_k8s_context yes
-set -g theme_display_hg yes
-set -g theme_display_virtualenv yes
-set -g theme_display_nix yes
-set -g theme_display_ruby yes
-set -g theme_display_node yes
-set -g theme_display_user ssh
-set -g theme_display_hostname ssh
-set -g theme_display_vi no
-set -g theme_display_date no
-set -g theme_display_cmd_duration yes
-set -g theme_title_display_process yes
-set -g theme_title_display_path yes
-set -g theme_title_display_user yes
-set -g theme_title_use_abbreviated_path no
-set -g theme_date_format "+%a %H:%M"
-set -g theme_avoid_ambiguous_glyphs yes
-set -g theme_powerline_fonts yes
-set -g theme_nerd_fonts yes
-set -g theme_show_exit_status yes
-set -g theme_display_jobs_verbose yes
-set -g default_user your_normal_user
-set -g theme_color_scheme dark
-set -g fish_prompt_pwd_dir_length 0
-set -g theme_project_dir_length 1
-set -g theme_newline_cursor yes
-set -g theme_newline_prompt '$ '
-
-# Configuración de fzf
-set -g FZF_DEFAULT_OPTS '--height 40% --layout=reverse --border'
-set -g FZF_DEFAULT_COMMAND 'fd --type f --hidden --follow --exclude .git'
-
-# Configuración de zoxide
-zoxide init fish | source
-
-# Configuración de atuin (historial mejorado)
-if command -v atuin >/dev/null 2>&1
-  atuin init fish | source
-end
-
-# Configuración de starship (prompt alternativo)
-if command -v starship >/dev/null 2>&1
-  starship init fish | source
-end
-
-# Configuración de direnv
-if command -v direnv >/dev/null 2>&1
-  direnv hook fish | source
-end
-
-# Configuración de asdf (version manager)
-if command -v asdf >/dev/null 2>&1
-  source ~/.asdf/asdf.fish
-end
-
-# Configuración de nvm
-if command -v nvm >/dev/null 2>&1
-  nvm use default >/dev/null 2>&1
-end
-
-# Configuración de pyenv
-if command -v pyenv >/dev/null 2>&1
-  pyenv init - | source
-end
-
-# Configuración de rbenv
-if command -v rbenv >/dev/null 2>&1
-  rbenv init - | source
-end
-
-# Completions útiles
-for tool in kubectl docker helm terraform az
-  if command -v $tool >/dev/null 2>&1
-    switch $tool
-      case kubectl
-        kubectl completion fish | source
-      case docker
-        docker completion fish | source
-      case helm
-        helm completion fish | source
-      case terraform
-        terraform -install-autocomplete
-      case az
-        az completion fish | source
-    end
-  end
-end
-
-# PATH optimizado y rápido
-function add_path --argument path
-  if test -d $path
-    if not contains $path $PATH
-      set -gx PATH $path $PATH
-    end
-  end
-end
-
-add_path $HOME/.cargo/bin
-add_path $HOME/go/bin
-add_path $HOME/flutter/bin
-add_path $HOME/.deno/bin
-add_path $HOME/.bun/bin
-add_path $HOME/.local/share/pnpm
-add_path $HOME/.yarn/bin
-add_path $HOME/.composer/vendor/bin
-add_path $HOME/.local/bin
-add_path $HOME/.local/scripts
-add_path /usr/local/bin
-add_path $HOME/bin
-add_path /snap/bin
-add_path /var/lib/flatpak/exports/bin
-add_path $HOME/.npm-global/bin
+# --- End of config.fish ---
+echo "🚀 Fish config loaded!" # Optional: for debugging
