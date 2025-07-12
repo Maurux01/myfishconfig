@@ -275,4 +275,3 @@ add_path /snap/bin
 add_path /var/lib/flatpak/exports/bin
 
 # --- End of config.fish ---
-echo "🚀 Fish config loaded!" # Optional: for debugging
