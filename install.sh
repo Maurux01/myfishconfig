@@ -14,6 +14,17 @@ if ! command -v fish &> /dev/null; then
     exit 1
 fi
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="$SCRIPT_DIR/config.fish"
+
+# Check if config.fish exists in the script directory
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "❌ config.fish not found in: $CONFIG_FILE"
+    echo "   Please make sure config.fish is in the same directory as this script."
+    exit 1
+fi
+
 # Create Fish config directory if it doesn't exist
 FISH_CONFIG_DIR="$HOME/.config/fish"
 mkdir -p "$FISH_CONFIG_DIR"
@@ -26,7 +37,7 @@ fi
 
 # Copy the config file
 echo "📋 Copying config.fish..."
-cp "config.fish" "$FISH_CONFIG_DIR/config.fish"
+cp "$CONFIG_FILE" "$FISH_CONFIG_DIR/config.fish"
 
 # Check if copy was successful
 if [ $? -eq 0 ]; then

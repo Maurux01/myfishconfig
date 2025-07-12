@@ -41,6 +41,7 @@ alias l='ls -CF'
 alias ..='cd ..'
 alias ...='cd ../..'
 alias ....='cd ../../..'
+alias home='cd ~'
 
 # Git
 alias gs='git status'
@@ -100,7 +101,7 @@ end
 function update
     echo "🔄 Actualizando sistema (Pacman)..."
     sudo pacman -Syu --noconfirm
-    echo "�� Limpiando caché de paquetes..."
+    echo "🧹 Limpiando caché de paquetes..."
     sudo pacman -Sc --noconfirm
     echo "✅ Sistema actualizado!"
 end
